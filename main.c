@@ -20,15 +20,15 @@ int _start(){
     CELL = 0;
 
     cls();
-    setMonitorColor(0xa5);
+    setMonitorColor(0x1F);
 
     char Welcome[] = "Welcome to HawksOS : Copyright 2025\n";
     char Tagline[] = "Command Line Version 0.1\n\n";
     char Prompt[] = "HawksOS> ";
 
-    printString(Welcome);
-    printString(Tagline);
-    printColorString(Prompt, 0xa8);
+    printColorString(Welcome, 0x1B);
+    printColorString(Tagline, 0x1B);
+    printColorString(Prompt, 0x1E);
 }
 
 void cls(){
