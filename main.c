@@ -25,7 +25,6 @@ int _start(){
     char Welcome[] = "Welcome to HawksOS : Copyright 2025\n";
     char Tagline[] = "Command Line Version 0.1\n\n";
     char Prompt[] = "HawksOS> ";
-    char paawan[] = "I am learning OS development\n";
 
     printString(Welcome);
     printString(Tagline);
