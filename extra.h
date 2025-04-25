@@ -6,10 +6,10 @@ void vid();
 char* TM_START;
 
 void blink(){
-	setMonitorColor(0x59);
+	setMonitorColor(0xF0);
 	int TIME_OUT = 0x10fffff;
 	while(--TIME_OUT);
-	setMonitorColor(0xa5);
+	setMonitorColor(0x1F);
 }
 
 char strcmp(char* sou , char* dest){

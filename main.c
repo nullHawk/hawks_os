@@ -1,3 +1,5 @@
+#include "extra.h"
+
 #define PIC1_C 0x20 // Command port for the master PIC
 #define PIC1_D 0x21 // Data port for the master PIC
 #define PIC2_C 0xa0 // Command port for the slave PIC
@@ -33,6 +35,9 @@ void outportb(unsigned short, unsigned char);
 char* TM_START;
 char NumberAscii[10];
 int CELL;
+
+char COMMAND[21];
+int i = 0;
 
 struct IDT_ENTRY{
 	unsigned short base_Lower;
@@ -207,6 +212,7 @@ extern void _isr1_Handler(){
 }
 
 void handleKeypress(int code){
+	char OSM[] = "\nHawksOS> ";
 	char Scancode[] = {
 		0 , 0 , '1' , '2' ,
 		'3' , '4' , '5' , '6' , 
@@ -220,14 +226,25 @@ void handleKeypress(int code){
 		',' , '.' , '/' , 0 , '*' , 0 , ' '
 	};
 	
-	if(code == 0x1c)
-		printChar('\n');
+	if(code == 0x1c){
+		COMMAND[i] = '\0';
+		i = 0;
+		strEval(COMMAND);
+		printColorString(OSM, 0x1E);
+	}
 	else if(code < 0x3a)
 		pressed(Scancode[code]);
 }
 
 void pressed(char key){
-	printChar(key);
+	if(i != 20){
+		COMMAND[i] = key;
+		i++;
+		printChar(key);
+	}
+	else{
+		blink();
+	}
 }
 
 // Remaps IRQ so that it doesn't overlap with CPU executions
