@@ -11,6 +11,7 @@
 
 void cls();
 void setMonitorColor(char);
+void disableBiosCursor();
 
 void printString(char*);
 void printChar(char);
@@ -58,6 +59,7 @@ int _start(){
 
     cls();
     setMonitorColor(0x1F);
+	disableBiosCursor();
 
     char Welcome[] = "Welcome to HawksOS : Copyright 2025\n";
     char Tagline[] = "Command Line Version 0.1\n\n";
@@ -68,6 +70,14 @@ int _start(){
     printColorString(Prompt, 0x1E);
 
 	initIDT();
+}
+
+void disableBiosCursor() {
+    // Set cursor position to a high value to hide the cursor
+    outportb(0x3D4, 0x0A);   // Command to set start scan line
+    outportb(0x3D5, 0x20);   // Set start scan line to 0x20 (max position)
+    outportb(0x3D4, 0x0B);   // Command to set end scan line
+    outportb(0x3D5, 0x20);   // Set end scan line to 0x20 (max position)
 }
 
 void cls(){
