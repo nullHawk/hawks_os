@@ -1,9 +1,7 @@
-#include "extra.h"
-
-#define PIC1_C 0x20
-#define PIC1_D 0x21
-#define PIC2_C 0xa0
-#define PIC2_D 0xa1
+#define PIC1_C 0x20 // Command port for the master PIC
+#define PIC1_D 0x21 // Data port for the master PIC
+#define PIC2_C 0xa0 // Command port for the slave PIC
+#define PIC2_D 0xa1 // Data Port for the slave PIC
 
 #define ICW1_DEF 0x10
 #define ICW1_ICW4 0x01
@@ -18,63 +16,62 @@ void printChar(char);
 void scroll();
 
 void printColorString(char* , char);
-void printColorChar(char , char);
+void printColorChar(char, char);
+
+void getDecAscii(int);
 
 void initIDT();
-extern  void loadIdt();
-extern  void isr1_Handler();
+extern void _loadIdt();
+extern void _isr1_Handler();
 void handleKeypress(int);
 void pressed(char);
 void picRemap();
 
 unsigned char inportb(unsigned short);
-void outportb(unsigned short , unsigned char);
+void outportb(unsigned short, unsigned char);
 
+char* TM_START;
+char NumberAscii[10];
 int CELL;
 
-
-char COMMAND[21];
-int i = 0;
-
 struct IDT_ENTRY{
-    unsigned short base_Lower;
-    unsigned short selector;
-    unsigned char zero;
-    unsigned char flags;
-    unsigned short base_Higher;
+	unsigned short base_Lower;
+	unsigned short selector;
+	unsigned char zero;
+	unsigned char flags;
+	unsigned short base_Higher;
 };
 
-struct IDT_ENTRY idt[256];
-extern unsigned int isr1;
+struct IDT_ENTRY _idt[256];
+extern unsigned int _isr1;
 unsigned int base;
 
-int start(){
-	TM_START = (char*) 0xb8000;
-	CELL = 0;
-	base = (unsigned int)&isr1;
+int _start(){
+    TM_START = (char*) 0xb8000;
+    CELL = 0;
+	base = (unsigned int)&_isr1;
 
-	cls();
-	setMonitorColor(0xa5);
+    cls();
+    setMonitorColor(0x1F);
 
-	char Welcome[] = "Welcome To OS0 : Copyright 2021\n";
-	char Welcome2[] = "Command Line Version 1.0.0.0\n\n";
-	char OSM[] = "OS0 > ";
+    char Welcome[] = "Welcome to HawksOS : Copyright 2025\n";
+    char Tagline[] = "Command Line Version 0.1\n\n";
+    char Prompt[] = "HawksOS> ";
 
-	printString(Welcome);
-	printString(Welcome2);
-	printColorString(OSM , 0xa8);
+    printColorString(Welcome, 0x1B);
+    printColorString(Tagline, 0x1B);
+    printColorString(Prompt, 0x1E);
 
 	initIDT();
 }
 
-
 void cls(){
-	int i = 0;
-	CELL = 0;
-	while(i < (2 * 80 * 25)){
-		*(TM_START + i) = ' '; // Clear screen
-		i += 2;
-	}
+    int i = 0;
+    CELL = 0;
+    while(i < (2 * 80 * 25)){
+        *(TM_START + i) = ' '; // Clear screen
+        i += 2;
+    }
 }
 
 void setMonitorColor(char Color){
@@ -139,19 +136,58 @@ void printColorChar(char c , char co){
 	CELL += 2;	
 }
 
-void initIDT(){
-	idt[1].base_Lower = (base & 0xFFFF);
-	idt[1].base_Higher = (base >> 16) & 0xFFFF;
-	idt[1].selector = 0x08;
-	idt[1].zero = 0;
-	idt[1].flags = 0x8e;
+void getDecAscii(int num){
+    if(num == 0){
+        NumberAscii[0] = '0';
+        return;
+    }
+    char NUM[10];
+    int i = 0, j = 0;
+    while(num > 0){
+        NUM[i] = num % 10;
+        num /= 10;
+        i++;
+    }
+    i--;
+    while(i >= 0){
+        NumberAscii[j] = NUM[i];
+        i--;
+        j++;
+    }
+    NumberAscii[j] = 'J';
+    j = 0;
+    while(NumberAscii[j] != 'J'){
+        NumberAscii[j] = '0' + NumberAscii[j];
+        j++;
+    }
+    NumberAscii[j] = 0;
+}
 
+void initIDT(){
+	// Set the lower 16 bits of the ISR1 handler address in the IDT entry
+	_idt[1].base_Lower = (base & 0xFFFF);
+
+	// Set the higher 16 bits of the ISR1 handler address in the IDT entry
+	_idt[1].base_Higher = (base >> 16) & 0xFFFF;
+
+	// Set the code segment selector for this IDT entry (0x08 is the kernel code segment)
+	_idt[1].selector = 0x08;
+
+	// Reserved field, must be zero
+	_idt[1].zero = 0;
+
+	// Set the flags for this IDT entry (0x8e = present, privilege level 0, 32-bit interrupt gate)
+	_idt[1].flags = 0x8e;
+
+	// Remap the PIC (Programmable Interrupt Controller) to avoid conflicts with CPU exceptions
 	picRemap();
 
-	outportb(0x21 , 0xfd);
-	outportb(0xa1 , 0xff);
+	// Enable IRQ1 (keyboard interrupt) by unmasking it in the PIC
+	outportb(0x21, 0xfd); // Mask all IRQs except IRQ1 on PIC1
+	outportb(0xa1, 0xff); // Mask all IRQs on PIC2
 
-	loadIdt();
+	// Load the IDT (Interrupt Descriptor Table) into the CPU
+	_loadIdt();
 }
 
 unsigned char inportb(unsigned short _port){
@@ -164,14 +200,13 @@ void outportb(unsigned short _port, unsigned char _data){
     __asm__ __volatile__ ("outb %1, %0" : : "dN" (_port), "a" (_data));
 }
 
-extern void isr1_Handler(){
+extern void _isr1_Handler(){
 	handleKeypress(inportb(0x60));
 	outportb(0x20 , 0x20);
 	outportb(0xa0 , 0x20);
 }
 
 void handleKeypress(int code){
-	char OSM[] = "\nOS0 > ";
 	char Scancode[] = {
 		0 , 0 , '1' , '2' ,
 		'3' , '4' , '5' , '6' , 
@@ -185,27 +220,17 @@ void handleKeypress(int code){
 		',' , '.' , '/' , 0 , '*' , 0 , ' '
 	};
 	
-	if(code == 0x1c){
-		COMMAND[i] = '\0';
-		i = 0;
-		strEval(COMMAND);
-		printString(OSM);
-	}
+	if(code == 0x1c)
+		printChar('\n');
 	else if(code < 0x3a)
 		pressed(Scancode[code]);
 }
 
 void pressed(char key){
-	if(i != 20){
-		COMMAND[i] = key;
-		i++;
-		printChar(key);
-	}
-	else{
-		blink();
-	}
+	printChar(key);
 }
 
+// Remaps IRQ so that it doesn't overlap with CPU executions
 void picRemap(){
 	unsigned char a , b;
 	a = inportb(PIC1_D);
