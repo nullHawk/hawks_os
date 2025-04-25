@@ -214,37 +214,41 @@ extern void _isr1_Handler(){
 void handleKeypress(int code){
 	char OSM[] = "\nHawksOS> ";
 	char Scancode[] = {
-		0 , 0 , '1' , '2' ,
-		'3' , '4' , '5' , '6' , 
-		'7' , '8' , '9' , '0' , 
-		'-' , '=' , 0 , 0 , 'Q' , 
-		'W' , 'E' , 'R' , 'T' , 'Y' ,
-		'U' , 'I' , 'O' , 'P' , '[' , ']' , 
-		0 , 0 , 'A' , 'S' , 'D' , 'F' , 'G' , 
-		'H' , 'J' , 'K' , 'L' , ';' , '\'' , '`' , 
-		0 , '\\' , 'Z' , 'X' , 'C' , 'V' , 'B' , 'N' , 'M' ,
-		',' , '.' , '/' , 0 , '*' , 0 , ' '
-	};
+        0 , 8 , '1' , '2' , '3' , '4' , '5' , '6' ,
+        '7' , '8' , '9' , '0' , '-', '=', 0 , 0 , 
+        'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I',
+        'O', 'P', '[', ']', 0 , 0 , 'A', 'S', 'D', 
+        'F', 'G', 'H', 'J', 'K', 'L', ';', '\'', '`', 
+        0 , '\\', 'Z', 'X', 'C', 'V', 'B', 'N', 'M',
+        ',', '.', '/', 0 , '*', 0 , ' '
+    };
 	
 	if(code == 0x1c){
 		COMMAND[i] = '\0';
 		i = 0;
 		strEval(COMMAND);
 		printColorString(OSM, 0x1E);
+	}  else if(code == 0x0E) {  // Backspace pressed
+		if(i > 0) {
+			i--;
+			CELL -= 2;  // Move cursor back
+			// Erase character
+			*(TM_START + CELL) = ' ';
+			*(TM_START + CELL + 1) = 0x1F;  // Maintain prompt color
+		}
+	} else if(code < 0x3a){
+		char key = Scancode[code];
+        if(key == 8) return;  // Already handled backspace
+        pressed(key);
 	}
-	else if(code < 0x3a)
-		pressed(Scancode[code]);
+	outportb(0x20, 0x20);
+    outportb(0xa0, 0x20);
 }
 
 void pressed(char key){
-	if(i != 20){
-		COMMAND[i] = key;
-		i++;
-		printChar(key);
-	}
-	else{
-		blink();
-	}
+	COMMAND[i] = key;
+	i++;
+	printChar(key);
 }
 
 // Remaps IRQ so that it doesn't overlap with CPU executions
